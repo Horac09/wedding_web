@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendulka & Honza | Budeme se brát</title>
+  
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Lenis: Plynulý scroll -->
+  <script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"></script>
+
+  <script>
+    window.tailwind = window.tailwind || {};
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            creamy: '#FAF8F5',
+            champagne: '#D4AF37',
+            champagneLight: '#F3E8D0',
+            olive: '#5A6B5C',
+            oliveLight: '#E8ECE8',
+            darkCharcoal: '#2D312E',
+          },
+          fontFamily: {
+            serif: ['"Cormorant Garamond"', 'serif'],
+            sans: ['"Montserrat"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Lenis integrace */
+    html.lenis, html.lenis body {
+      height: auto;
+    }
+    .lenis.lenis-smooth {
+      scroll-behavior: auto !important;
+    }
+    .lenis.lenis-smooth [data-lenis-prevent] {
+      overscroll-behavior: contain;
+    }
+    .lenis.lenis-stopped {
+      overflow: hidden;
+    }
+
+    body {
+      background-color: #FAF8F5;
+      color: #2D312E;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Jednotné pastelové plátno pro celou stránku */
+    #ambient-background {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      pointer-events: none;
+      transform: translate3d(0, 0, 0);
+      background-color: #FAF8F5;
+      background-image: 
+        radial-gradient(circle at 10% 8%, rgba(220, 232, 246, 0.80) 0%, transparent 45%),
+        radial-gradient(circle at 90% 16%, rgba(238, 221, 240, 0.75) 0%, transparent 50%),
+        radial-gradient(circle at 5% 45%, rgba(235, 242, 250, 0.85) 0%, transparent 45%),
+        radial-gradient(circle at 95% 55%, rgba(247, 238, 248, 0.80) 0%, transparent 48%),
+        radial-gradient(circle at 12% 82%, rgba(220, 232, 246, 0.75) 0%, transparent 45%),
+        radial-gradient(circle at 88% 92%, rgba(238, 221, 240, 0.80) 0%, transparent 50%);
+    }
+
+    /* Izolace sekcí */
+    section {
+      contain: layout paint;
+    }
+
+    /* Animace */
+    .reveal {
+      opacity: 0;
+      transform: translate3d(0, 22px, 0);
+      transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.active {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+    .delay-100 { transition-delay: 70ms; }
+    .delay-200 { transition-delay: 140ms; }
+    .delay-300 { transition-delay: 210ms; }
+  </style>
+</head>
+<body class="font-sans antialiased selection:bg-champagneLight selection:text-darkCharcoal relative">
+
+  <!-- Fixní jednotné pastelové pozadí -->
+  <div id="ambient-background"></div>
+
+  <!-- Navigace -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 border-b border-champagneLight/70 shadow-xs">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="#" class="font-serif text-2xl font-semibold tracking-wider text-darkCharcoal hover:text-olive transition-colors">V & H</a>
+      
+      <!-- Desktop menu -->
+      <div class="hidden md:flex space-x-8 text-sm uppercase tracking-widest text-darkCharcoal/80">
+        <a href="#pribeh" class="nav-link hover:text-champagne transition-colors">Náš příběh</a>
+        <a href="#harmonogram" class="nav-link hover:text-champagne transition-colors">Harmonogram</a>
+        <a href="#mista" class="nav-link hover:text-champagne transition-colors">Místa</a>
+        <a href="#informace" class="nav-link hover:text-champagne transition-colors">Informace</a>
+        <a href="#rsvp" class="nav-link hover:text-champagne font-semibold text-olive transition-colors">Potvrzení účasti</a>
+      </div>
+
+      <!-- Mobilní prvky -->
+      <div class="flex items-center space-x-3 md:hidden">
+        <a href="#rsvp" class="nav-link text-xs uppercase tracking-widest px-3.5 py-1.5 rounded-full border border-olive text-olive font-medium bg-white shadow-xs">Účast</a>
+        <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="p-2 text-darkCharcoal focus:outline-none" aria-label="Otevřít menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobilní menu -->
+    <div id="mobile-menu" class="hidden md:hidden fixed inset-x-0 top-[65px] bg-[#FAF8F5] border-b border-champagneLight/80 px-6 py-8 shadow-xl transition-all">
+      <div class="flex flex-col space-y-5 text-center text-sm uppercase tracking-widest text-darkCharcoal">
+        <a href="#pribeh" onclick="toggleMobileMenu()" class="nav-link py-2 hover:text-olive border-b border-champagneLight/30">Náš příběh</a>
+        <a href="#harmonogram" onclick="toggleMobileMenu()" class="nav-link py-2 hover:text-olive border-b border-champagneLight/30">Harmonogram</a>
+        <a href="#mista" onclick="toggleMobileMenu()" class="nav-link py-2 hover:text-olive border-b border-champagneLight/30">Místa</a>
+        <a href="#informace" onclick="toggleMobileMenu()" class="nav-link py-2 hover:text-olive border-b border-champagneLight/30">Informace</a>
+        <a href="#rsvp" onclick="toggleMobileMenu()" class="nav-link py-2.5 mt-2 rounded-full bg-olive text-white font-semibold">Potvrdit účast</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Úvodní Hero Sekce -->
+  <header class="pt-32 pb-20 md:pt-44 md:pb-32 text-center px-4 relative">
+    
+    <!-- Větvičky v Hero -->
+    <div class="hidden lg:block absolute left-8 top-32 pointer-events-none opacity-20">
+      <svg width="140" height="220" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+        <path d="M120 20 Q135 5 140 0 Q130 18 120 20 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <div class="hidden lg:block absolute right-8 top-32 pointer-events-none opacity-20 transform scale-x-[-1]">
+      <svg width="140" height="220" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+        <path d="M120 20 Q135 5 140 0 Q130 18 120 20 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/80 border border-champagneLight/80 shadow-xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-olive"></span>
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Budeme se brát</span>
+      </div>
+
+      <h1 class="font-serif text-5xl md:text-7xl font-normal tracking-wide text-darkCharcoal">Vendulka & Honza</h1>
+      <p class="font-serif italic text-xl md:text-2xl text-darkCharcoal/70">17. července 2027 v 11:00 • Kostel sv. Jiljí, Chropyně</p>
+
+      <div class="pt-8">
+        <div id="countdown" class="grid grid-cols-4 gap-3 max-w-md mx-auto text-center">
+          <div class="bg-white/90 p-3 rounded-2xl border border-champagneLight shadow-xs">
+            <span id="cd-days" class="font-serif text-2xl md:text-3xl block text-darkCharcoal">--</span>
+            <span class="text-[10px] md:text-xs uppercase tracking-wider text-darkCharcoal/60">dní</span>
+          </div>
+          <div class="bg-white/90 p-3 rounded-2xl border border-champagneLight shadow-xs">
+            <span id="cd-hours" class="font-serif text-2xl md:text-3xl block text-darkCharcoal">--</span>
+            <span class="text-[10px] md:text-xs uppercase tracking-wider text-darkCharcoal/60">hodin</span>
+          </div>
+          <div class="bg-white/90 p-3 rounded-2xl border border-champagneLight shadow-xs">
+            <span id="cd-minutes" class="font-serif text-2xl md:text-3xl block text-darkCharcoal">--</span>
+            <span class="text-[10px] md:text-xs uppercase tracking-wider text-darkCharcoal/60">minut</span>
+          </div>
+          <div class="bg-white/90 p-3 rounded-2xl border border-champagneLight shadow-xs">
+            <span id="cd-seconds" class="font-serif text-2xl md:text-3xl block text-darkCharcoal">--</span>
+            <span class="text-[10px] md:text-xs uppercase tracking-wider text-darkCharcoal/60">sekund</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="#rsvp" class="nav-link inline-block px-9 py-3.5 rounded-full bg-olive text-white text-xs uppercase tracking-widest font-semibold hover:bg-olive/90 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">Potvrdit účast</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- NÁŠ PŘÍBĚH & SPOLEČNÁ CESTA -->
+  <section id="pribeh" class="py-16 md:py-24 relative">
+    <div class="max-w-4xl mx-auto px-6">
+      
+      <div class="text-center mb-16 reveal">
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Jak to všechno začalo</span>
+        <h2 class="font-serif text-4xl text-darkCharcoal mt-2">Náš příběh</h2>
+        <div class="w-16 h-0.5 bg-champagne mx-auto mt-4"></div>
+      </div>
+
+      <!-- Medailonky se siluetami -->
+      <div class="grid md:grid-cols-2 gap-8 mb-16">
+        
+        <!-- Vendulka -->
+        <div class="bg-white/95 p-7 rounded-3xl border border-champagneLight/80 text-center space-y-4 shadow-sm reveal delay-100">
+          <div class="w-36 h-36 mx-auto rounded-full overflow-hidden border-2 border-champagne shadow-inner bg-[#F3E8F5] flex items-center justify-center p-3">
+            <svg class="w-full h-full text-olive" viewBox="0 0 100 100" fill="currentColor">
+              <circle cx="50" cy="22" r="9"/>
+              <circle cx="50" cy="38" r="15"/>
+              <path d="M 20 86 C 21 68, 33 58, 50 58 C 67 58, 79 68, 80 86 Z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-serif text-2xl text-darkCharcoal">Vendulka</h3>
+            <p class="text-xs uppercase tracking-widest text-olive font-medium">Nevěsta</p>
+          </div>
+          <p class="text-xs text-darkCharcoal/70 leading-relaxed italic">
+            „Na Honzovi nejvíc miluji jeho klid, rozvahu a to, jak se s ním cítím v bezpečí a šťastná, ať jsme kdekoliv.“
+          </p>
+        </div>
+
+        <!-- Honza -->
+        <div class="bg-white/95 p-7 rounded-3xl border border-champagneLight/80 text-center space-y-4 shadow-sm reveal delay-200">
+          <div class="w-36 h-36 mx-auto rounded-full overflow-hidden border-2 border-champagne shadow-inner bg-[#E4EDF7] flex items-center justify-center p-3">
+            <svg class="w-full h-full text-olive" viewBox="0 0 100 100" fill="currentColor">
+              <circle cx="50" cy="36" r="16"/>
+              <path d="M 18 86 C 19 66, 32 57, 50 57 C 68 57, 81 66, 82 86 Z"/>
+              <polygon points="50,57 45,67 50,72 55,67" class="text-white fill-current"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-serif text-2xl text-darkCharcoal">Honza</h3>
+            <p class="text-xs uppercase tracking-widest text-olive font-medium">Ženich</p>
+          </div>
+          <p class="text-xs text-darkCharcoal/70 leading-relaxed italic">
+            „Vendulka vnáší do mého života neuvěřitelnou energii, úsměv a teplo domova. Být s ní je to nejlepší rozhodnutí.“
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Časová osa společné cesty -->
+      <div class="space-y-8 max-w-2xl mx-auto border-l-2 border-champagne/40 pl-6 my-12 reveal">
+        <div class="relative">
+          <div class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-olive border-2 border-white shadow-xs"></div>
+          <span class="text-xs uppercase tracking-wider text-olive font-semibold">První setkání</span>
+          <h4 class="font-serif text-xl text-darkCharcoal">Když přeskočila jiskra</h4>
+          <p class="text-xs text-darkCharcoal/70 mt-1 leading-relaxed">
+            Okamžik, kdy se naše cesty poprvé zkřížily. Stačilo pár rozhovorů, společný smích a oba jsme věděli, že tohle je začátek něčeho výjimečného.
+          </p>
+        </div>
+
+        <div class="relative">
+          <div class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-olive border-2 border-white shadow-xs"></div>
+          <span class="text-xs uppercase tracking-wider text-olive font-semibold">Společné kroky & dobrodružství</span>
+          <h4 class="font-serif text-xl text-darkCharcoal">Stavíme náš společný svět</h4>
+          <p class="text-xs text-darkCharcoal/70 mt-1 leading-relaxed">
+            Společné cestování, budování domova, vzájemná opora při studiu i práci a sdílení všech velkých i malých životních radostí.
+          </p>
+        </div>
+
+        <div class="relative">
+          <div class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-champagne border-2 border-white shadow-xs"></div>
+          <span class="text-xs uppercase tracking-wider text-champagne font-semibold">Zásnuby</span>
+          <h4 class="font-serif text-xl text-darkCharcoal">Řekla ANO</h4>
+          <p class="text-xs text-darkCharcoal/70 mt-1 leading-relaxed">
+            Krásný a nezapomenutelný okamžik, kdy jsme se rozhodli, že chceme zbytek života kráčet společně ruku v ruce.
+          </p>
+        </div>
+      </div>
+
+      <!-- Společné fotografie -->
+      <div class="pt-8 reveal">
+        <h3 class="font-serif text-2xl text-center text-darkCharcoal mb-6">Střípky z našich společných chvil</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <div class="h-44 md:h-56 rounded-2xl overflow-hidden shadow-xs border border-white group">
+            <img src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=600&q=80" loading="lazy" decoding="async" alt="Společný moment 1" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+          </div>
+          <div class="h-44 md:h-56 rounded-2xl overflow-hidden shadow-xs border border-white group">
+            <img src="https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=600&q=80" loading="lazy" decoding="async" alt="Společný moment 2" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+          </div>
+          <div class="col-span-2 md:col-span-1 h-44 md:h-56 rounded-2xl overflow-hidden shadow-xs border border-white group">
+            <img src="https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=600&q=80" loading="lazy" decoding="async" alt="Společný moment 3" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Harmonogram (nyní čistý a bez cizího pruhu, doplněný o větvičku) -->
+  <section id="harmonogram" class="py-16 md:py-24 relative">
+    
+    <!-- Větvička u Harmonogramu -->
+    <div class="hidden xl:block absolute -right-4 top-20 pointer-events-none opacity-20 transform scale-x-[-1] rotate-12">
+      <svg width="130" height="200" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Jak poběží náš den</span>
+        <h2 class="font-serif text-4xl text-darkCharcoal mt-2">Harmonogram svatby</h2>
+      </div>
+
+      <div class="space-y-6 max-w-xl mx-auto">
+        <div class="flex items-start space-x-6 bg-white/80 p-5 rounded-2xl border border-champagneLight/80 shadow-xs reveal">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">10:30</span>
+          <div class="border-l-2 border-champagneLight pl-5">
+            <h3 class="font-medium text-darkCharcoal">Příjezd a setkání před kostelem</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">Přivítání svatebních hostů před Kostelem sv. Jiljí v Chropyni.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-6 bg-white/90 p-5 rounded-2xl border border-champagneLight shadow-xs reveal delay-100">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">11:00</span>
+          <div class="border-l-2 border-champagne pl-5">
+            <h3 class="font-medium text-darkCharcoal">Svatební obřad</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">Slavnostní slib s hudebním doprovodem sboru a varhan.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-6 bg-white/80 p-5 rounded-2xl border border-champagneLight/80 shadow-xs reveal delay-100">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">12:15</span>
+          <div class="border-l-2 border-champagneLight pl-5">
+            <h3 class="font-medium text-darkCharcoal">Gratulace, focení a přejezd</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">Společné skupinové fotografie a společný přesun do Vlkoše.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-6 bg-white/90 p-5 rounded-2xl border border-champagneLight shadow-xs reveal delay-200">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">13:30</span>
+          <div class="border-l-2 border-champagne pl-5">
+            <h3 class="font-medium text-darkCharcoal">Svatební oběd & přípitek</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">Hostina a přípitek v příjemném areálu Restaurace U Šneka.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-6 bg-white/80 p-5 rounded-2xl border border-champagneLight/80 shadow-xs reveal delay-200">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">16:00</span>
+          <div class="border-l-2 border-champagneLight pl-5">
+            <h3 class="font-medium text-darkCharcoal">Krájení dortu & káva</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">Sladký bar a odpolední neformální povídání.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-6 bg-white/90 p-5 rounded-2xl border border-champagneLight shadow-xs reveal delay-300">
+          <span class="font-serif text-2xl text-olive w-16 text-right shrink-0">18:00</span>
+          <div class="border-l-2 border-champagne pl-5">
+            <h3 class="font-medium text-darkCharcoal">Večerní raut & párty s DJ</h3>
+            <p class="text-xs md:text-sm text-darkCharcoal/70">První tanec novomanželů, grilování a oslava až do noci.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Místa konání (doplněno o větvičku vlevo) -->
+  <section id="mista" class="py-16 md:py-24 relative">
+    
+    <!-- Větvička u Míst -->
+    <div class="hidden xl:block absolute -left-6 top-36 pointer-events-none opacity-20 -rotate-12">
+      <svg width="130" height="200" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Kde se potkáme</span>
+        <h2 class="font-serif text-4xl text-darkCharcoal mt-2">Místa konání</h2>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-8">
+        
+        <!-- Kostel v Chropyni -->
+        <div class="bg-white/95 p-8 rounded-3xl border border-champagneLight shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between reveal delay-100">
+          <div class="space-y-4">
+            <span class="text-xs uppercase tracking-widest text-champagne font-semibold">Místo obřadu</span>
+            <h3 class="font-serif text-3xl text-darkCharcoal">Kostel sv. Jiljí</h3>
+            <p class="text-sm text-darkCharcoal/70">Náměstí Svobody, 768 11 Chropyně</p>
+            <p class="text-sm text-darkCharcoal/80 leading-relaxed">
+              Krásný barokní farní kostel přímo v centru Chropyně. Parkování je možné na přilehlém náměstí a v okolních uličkách.
+            </p>
+          </div>
+
+          <!-- Tlačítka map -->
+          <div class="pt-6 border-t border-champagneLight/40 mt-6">
+            <p class="text-[11px] uppercase tracking-wider text-darkCharcoal/60 mb-3 font-medium">Navigovat na místo:</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <a href="https://mapy.cz/s/keronulupo" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Mapy.cz
+              </a>
+              <a href="https://maps.app.goo.gl/K663wMctMwphpRY26" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Google Mapy
+              </a>
+              <a href="https://maps.apple.com/place?place-id=I46F2CEB18428AA50&address=n%C3%A1m%C4%9Bst%C3%AD+Svobody+57%2C+768+11+Chropyn%C4%9B%2C+Okres+Krom%C4%9B%C5%99%C3%AD%C5%BE%2C+%C4%8Cesko&coordinate=49.356213%2C17.365248&name=Kostel+svat%C3%A9ho+Jilj%C3%AD&_provider=9902" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Apple Mapy
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Restaurace U Šneka ve Vlkoši -->
+        <div class="bg-white/95 p-8 rounded-3xl border border-champagneLight shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between reveal delay-200">
+          <div class="space-y-4">
+            <span class="text-xs uppercase tracking-widest text-champagne font-semibold">Hostina a oslava</span>
+            <h3 class="font-serif text-3xl text-darkCharcoal">Restaurace U Šneka</h3>
+            <p class="text-sm text-darkCharcoal/70">9. května 4/21, 751 19 Vlkoš – Kanovsko</p>
+            <p class="text-sm text-darkCharcoal/80 leading-relaxed">
+              Areál s venkovním i vnitřním posezením, kde prožijeme odpoledne a večerní zábavu. Přejezd z Chropyně trvá autem přibližně 10 minut.
+            </p>
+          </div>
+
+          <!-- Tlačítka map -->
+          <div class="pt-6 border-t border-champagneLight/40 mt-6">
+            <p class="text-[11px] uppercase tracking-wider text-darkCharcoal/60 mb-3 font-medium">Navigovat na místo:</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <a href="https://mapy.cz/s/bohojadama" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Mapy.cz
+              </a>
+              <a href="https://maps.app.goo.gl/pkLDE6BuBV1azEVF6" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Google Mapy
+              </a>
+              <a href="https://maps.apple.com/place?place-id=IE6BF57653013173B&address=9.+kv%C4%9Btna+4%2F21%2C+751+19+Vlko%C5%A1+-+Kanovsko%2C+Okres+P%C5%99erov%2C+%C4%8Cesko&coordinate=49.393165%2C17.423395&name=U+%C5%A0neka&_provider=9902" target="_blank" rel="noopener noreferrer" 
+                 class="px-3.5 py-1.5 rounded-full border border-olive/30 bg-white hover:border-olive hover:bg-olive hover:text-white transition-all text-olive font-medium shadow-xs">
+                Apple Mapy
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Praktické informace (bez šedého pruhu, čisté bílé karty na pastelovém pozadí) -->
+  <section id="informace" class="py-16 md:py-20 relative">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-12 reveal">
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Praktické tipy</span>
+        <h2 class="font-serif text-4xl text-darkCharcoal mt-2">Důležité informace</h2>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6 text-center">
+        <div class="p-6 bg-white/95 rounded-3xl border border-champagneLight/80 shadow-xs reveal delay-100">
+          <h3 class="font-serif text-xl mb-2 text-darkCharcoal">Dress Code</h3>
+          <p class="text-xs text-darkCharcoal/70 leading-relaxed">
+            Letní elegantní / semi-formal. Budeme rádi, když zvolíte přírodní či pastelové tóny. Dámy prosíme vynechat čistě bílou barvu.
+          </p>
+        </div>
+        <div class="p-6 bg-white/95 rounded-3xl border border-champagneLight/80 shadow-xs reveal delay-200">
+          <h3 class="font-serif text-xl mb-2 text-darkCharcoal">Svatební dary</h3>
+          <p class="text-xs text-darkCharcoal/70 leading-relaxed">
+            Největším darem pro nás bude, když tento den strávíte s námi. Pokud byste nás chtěli obdarovat, budeme vděční za finanční příspěvek na naši společnou cestu.
+          </p>
+        </div>
+        <div class="p-6 bg-white/95 rounded-3xl border border-champagneLight/80 shadow-xs reveal delay-300">
+          <h3 class="font-serif text-xl mb-2 text-darkCharcoal">Ubytování & Odvoz</h3>
+          <p class="text-xs text-darkCharcoal/70 leading-relaxed">
+            Pro vzdálenější hosty řešíme možnost ubytování. U jednotlivých hostů níže nám prosím označte, kdo z vás bude mít zájem o nocleh.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Skrytý iframe pro odesílání -->
+  <iframe name="skryty_iframe" id="skryty_iframe" style="display:none;" onload="hotovoOdeslano()"></iframe>
+
+  <!-- Formulář pro potvrzení účasti (s větvičkami v pozadí) -->
+  <section id="rsvp" class="py-16 md:py-24 relative">
+    
+    <!-- Větvička vpravo nahoře u formuláře -->
+    <div class="hidden lg:block absolute right-8 top-16 pointer-events-none opacity-20 transform scale-x-[-1] rotate-6">
+      <svg width="140" height="220" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+        <path d="M120 20 Q135 5 140 0 Q130 18 120 20 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <!-- Větvička vlevo dole u formuláře -->
+    <div class="hidden lg:block absolute left-8 bottom-16 pointer-events-none opacity-20 -rotate-12">
+      <svg width="140" height="220" viewBox="0 0 140 220" fill="none" class="text-olive">
+        <path d="M10 210 Q40 120 120 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M45 140 Q65 125 80 135 Q70 150 45 140 Z" fill="currentColor"/>
+        <path d="M45 140 Q30 120 25 105 Q42 112 45 140 Z" fill="currentColor"/>
+        <path d="M80 90 Q105 75 118 85 Q105 102 80 90 Z" fill="currentColor"/>
+        <path d="M80 90 Q65 75 60 60 Q75 68 80 90 Z" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-10 reveal">
+        <span class="text-xs uppercase tracking-[0.25em] text-olive font-medium">Dejte nám vědět do 30. 4. 2027</span>
+        <h2 class="font-serif text-4xl text-darkCharcoal mt-2">Potvrzení účasti</h2>
+        <p class="text-sm text-darkCharcoal/70 mt-2">Vyplňte prosím údaje za sebe i svou rodinu či doprovod. U každého člena můžete upřesnit účast, stravu i ubytování.</p>
+      </div>
+
+      <form id="rsvp-form" 
+            action="https://script.google.com/macros/s/AKfycbwVnGScfpMmkz1yybNdCv54H-iukYtgBNBbrszV_Gx8kkbqbgLgUFChwIN-WL55Mgd5DQ/exec" 
+            method="POST" 
+            target="skryty_iframe" 
+            onsubmit="return predOdeslanim();"
+            class="bg-white/95 p-6 md:p-10 rounded-3xl border border-champagneLight shadow-lg space-y-6 reveal">
+        
+        <input type="hidden" name="jmeno" id="hidden-jmeno">
+        <input type="hidden" name="ucast" id="hidden-ucast">
+        <input type="hidden" name="dospeli" id="hidden-dospeli">
+        <input type="hidden" name="deti" id="hidden-deti">
+        <input type="hidden" name="diety" id="hidden-diety">
+        <input type="hidden" name="vzkaz" id="hidden-vzkaz">
+
+        <div>
+          <label class="block text-xs uppercase tracking-wider font-medium text-darkCharcoal mb-2">Rodina / Kontaktní osoba *</label>
+          <input type="text" id="family-name" required placeholder="např. Rodina Novákova (Jan Novák)" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-sm bg-white">
+        </div>
+
+        <div id="persons-container" class="space-y-4 pt-4 border-t border-champagneLight/60">
+          <div class="flex items-center justify-between">
+            <h3 class="font-serif text-xl text-darkCharcoal">Jednotliví hosté</h3>
+            <span class="text-xs text-darkCharcoal/60">Dospělí i děti</span>
+          </div>
+
+          <div id="persons-list" class="space-y-4"></div>
+
+          <button type="button" onclick="pridatOsobu()" class="w-full py-3.5 border-2 border-dashed border-olive/40 hover:border-olive text-olive rounded-xl text-xs uppercase tracking-wider font-semibold transition-colors flex items-center justify-center space-x-2 cursor-pointer bg-oliveLight/30 hover:bg-oliveLight/50">
+            <span>+ Přidat dalšího člena rodiny / doprovod</span>
+          </button>
+        </div>
+
+        <div class="pt-4 border-t border-champagneLight/60">
+          <label class="block text-xs uppercase tracking-wider font-medium text-darkCharcoal mb-2">Vzkaz pro snoubence (volitelné)</label>
+          <textarea id="rsvp-custom-message" rows="3" placeholder="Máte pro nás přání, dotaz či upřesnění?" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-sm bg-white"></textarea>
+        </div>
+
+        <button type="submit" id="rsvp-submit-btn" class="w-full py-4 rounded-full bg-olive text-white text-xs uppercase tracking-widest font-semibold hover:bg-olive/90 shadow transition-all cursor-pointer">
+          Odeslat potvrzení za celou rodinu
+        </button>
+        <p id="rsvp-success" class="hidden text-center text-sm font-medium text-olive pt-2">Děkujeme! Vaše potvrzení bylo úspěšně zaznamenáno do tabulky.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Čistá patička -->
+  <footer class="py-12 bg-darkCharcoal text-creamy/80 text-center text-xs relative z-10">
+    <div class="max-w-4xl mx-auto px-6 space-y-2">
+      <p class="font-serif text-lg text-creamy">Vendulka & Honza • 17. 7. 2027</p>
+      <p class="text-creamy/40">Těšíme se na vás v Chropyni a ve Vlkoši</p>
+    </div>
+  </footer>
+
+  <!-- Hlavní skripty -->
+  <script>
+    // 1. DOKONALE PLYNULÝ NÁBĚH LENIS
+    let lenis;
+    window.addEventListener('DOMContentLoaded', () => {
+      requestAnimationFrame(() => {
+        if (typeof Lenis !== 'undefined') {
+          lenis = new Lenis({
+            lerp: 0.085,
+            wheelMultiplier: 0.95,
+            smoothWheel: true,
+            syncTouch: false,
+          });
+
+          function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+          }
+          requestAnimationFrame(raf);
+
+          document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+              const href = link.getAttribute('href');
+              if (href && href.startsWith('#')) {
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) {
+                  lenis.scrollTo(target, { offset: -70 });
+                }
+              }
+            });
+          });
+        }
+
+        initScrollReveal();
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+        pridatOsobu();
+      });
+    });
+
+    // 2. MOBILNÍ MENU
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    // 3. OPTIMALIZOVANÝ SCROLL REVEAL
+    function initScrollReveal() {
+      const reveals = document.querySelectorAll('.reveal');
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+            obs.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.04,
+        rootMargin: '0px 0px -10px 0px'
+      });
+
+      reveals.forEach(el => observer.observe(el));
+    }
+
+    // 4. ODPOČET DO SVATBY
+    const weddingDate = new Date('2027-07-17T11:00:00+02:00').getTime();
+    function updateCountdown() {
+      const cdDays = document.getElementById('cd-days');
+      const cdHours = document.getElementById('cd-hours');
+      const cdMinutes = document.getElementById('cd-minutes');
+      const cdSeconds = document.getElementById('cd-seconds');
+      if (!cdDays || !cdHours || !cdMinutes || !cdSeconds) return;
+
+      const now = new Date().getTime();
+      const distance = weddingDate - now;
+      if (distance < 0) {
+        const cnt = document.getElementById('countdown');
+        if (cnt) cnt.innerHTML = "<div class='col-span-4 font-serif text-2xl'>Dnes je náš velký den!</div>";
+        return;
+      }
+      cdDays.innerText = Math.floor(distance / (1000 * 60 * 60 * 24));
+      cdHours.innerText = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      cdMinutes.innerText = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      cdSeconds.innerText = Math.floor((distance % (1000 * 60)) / 1000);
+    }
+
+    // 5. DYNAMICKÝ FORMULÁŘ
+    let personCount = 0;
+
+    function pridatOsobu(defaultName = '', defaultType = 'dospely', defaultAttendance = 'ano_cely_den') {
+      personCount++;
+      const id = personCount;
+      const list = document.getElementById('persons-list');
+
+      const card = document.createElement('div');
+      card.id = `person-card-${id}`;
+      card.className = "p-5 md:p-6 rounded-2xl border border-champagneLight bg-creamy/60 relative space-y-4 person-item transition-all shadow-xs";
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between pb-2 border-b border-champagneLight/50">
+          <span class="text-xs uppercase tracking-wider font-semibold text-olive person-number-title">Host #${id}</span>
+          ${id > 1 ? `<button type="button" onclick="odebratOsobu(${id})" class="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer">✕ Odebrat</button>` : ''}
+        </div>
+
+        <!-- 1. Řádek: Jméno a Kategorie -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="md:col-span-2">
+            <label class="block text-[11px] uppercase tracking-wider text-darkCharcoal/70 mb-1">Jméno a příjmení *</label>
+            <input type="text" class="person-name w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-sm bg-white" placeholder="např. Marie Nováková" value="${defaultName}" required>
+          </div>
+          <div>
+            <label class="block text-[11px] uppercase tracking-wider text-darkCharcoal/70 mb-1">Kategorie</label>
+            <select class="person-type w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-sm bg-white">
+              <option value="dospely" ${defaultType === 'dospely' ? 'selected' : ''}>Dospělý</option>
+              <option value="dite" ${defaultType === 'dite' ? 'selected' : ''}>Dítě</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Řádek: Účast na svatbě s plnou šířkou -->
+        <div>
+          <label class="block text-[11px] uppercase tracking-wider text-darkCharcoal/70 mb-1">Účast na svatbě *</label>
+          <select class="person-attendance w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-sm bg-white font-medium" onchange="zmenaUcastiOsoby(${id})">
+            <option value="ano_cely_den" ${defaultAttendance === 'ano_cely_den' ? 'selected' : ''}>Celý den (obřad i hostina)</option>
+            <option value="pouze_obrad" ${defaultAttendance === 'pouze_obrad' ? 'selected' : ''}>Pouze obřad v kostele</option>
+            <option value="ne" ${defaultAttendance === 'ne' ? 'selected' : ''}>Bohužel nemohu dorazit</option>
+          </select>
+        </div>
+
+        <!-- 3. Detaily: Ubytování a Alergeny -->
+        <div id="person-details-${id}" class="space-y-3 pt-1">
+          <div>
+            <label class="inline-flex items-center space-x-2 text-xs font-medium text-darkCharcoal cursor-pointer bg-white px-3.5 py-2 rounded-xl border border-champagneLight">
+              <input type="checkbox" class="person-sleep accent-olive rounded">
+              <span>Má zájem o ubytování</span>
+            </label>
+          </div>
+
+          <div>
+            <label class="block text-[11px] uppercase tracking-wider text-darkCharcoal/70 mb-1.5">Dietní omezení & alergeny</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-xs text-darkCharcoal/80">
+              <label class="flex items-center space-x-1.5 p-2 rounded-lg bg-white border border-gray-100 cursor-pointer">
+                <input type="checkbox" value="Bezlepková (Celiakie)" class="person-allergy accent-olive">
+                <span>Bezlepková</span>
+              </label>
+              <label class="flex items-center space-x-1.5 p-2 rounded-lg bg-white border border-gray-100 cursor-pointer">
+                <input type="checkbox" value="Bez laktózy" class="person-allergy accent-olive">
+                <span>Bez laktózy</span>
+              </label>
+              <label class="flex items-center space-x-1.5 p-2 rounded-lg bg-white border border-gray-100 cursor-pointer">
+                <input type="checkbox" value="Histaminová intolerance (HIT)" class="person-allergy accent-olive">
+                <span>Histamin</span>
+              </label>
+              <label class="flex items-center space-x-1.5 p-2 rounded-lg bg-white border border-gray-100 cursor-pointer">
+                <input type="checkbox" value="Vegetarián/Vegan" class="person-allergy accent-olive">
+                <span>Vegetarián</span>
+              </label>
+              <label class="flex items-center space-x-1.5 p-2 rounded-lg bg-white border border-gray-100 cursor-pointer">
+                <input type="checkbox" value="Ořechy" class="person-allergy accent-olive">
+                <span>Ořechy</span>
+              </label>
+            </div>
+            <input type="text" class="person-diet-custom mt-2 w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-olive text-xs bg-white" placeholder="Jiná specifická alergie či poznámka k jídlu...">
+          </div>
+        </div>
+
+        <div id="person-declined-${id}" class="hidden py-1 text-xs text-darkCharcoal/50 italic bg-white p-2.5 rounded-lg border border-gray-200">
+          Tento host se svatby nezúčastní (omluven/a).
+        </div>
+      `;
+
+      list.appendChild(card);
+      precislovatOsoby();
+    }
+
+    function odebratOsobu(id) {
+      const card = document.getElementById(`person-card-${id}`);
+      if (card) {
+        card.remove();
+        precislovatOsoby();
+      }
+    }
+
+    function precislovatOsoby() {
+      const cards = document.querySelectorAll('.person-item');
+      cards.forEach((card, index) => {
+        const title = card.querySelector('.person-number-title');
+        if (title) title.innerText = `Host #${index + 1}`;
+      });
+    }
+
+    function zmenaUcastiOsoby(id) {
+      const card = document.getElementById(`person-card-${id}`);
+      if (!card) return;
+      const ucast = card.querySelector('.person-attendance').value;
+      const details = document.getElementById(`person-details-${id}`);
+      const declined = document.getElementById(`person-declined-${id}`);
+
+      if (ucast === 'ne') {
+        if (details) details.classList.add('hidden');
+        if (declined) declined.classList.remove('hidden');
+      } else {
+        if (details) details.classList.remove('hidden');
+        if (declined) declined.classList.add('hidden');
+      }
+    }
+
+    // 6. ODESÍLÁNÍ FORMULÁŘE
+    let odesilaSe = false;
+
+    function predOdeslanim() {
+      const familyName = document.getElementById('family-name').value.trim();
+      if (!familyName) {
+        alert('Vyplňte prosím název rodiny nebo kontaktní osobu.');
+        return false;
+      }
+
+      const personCards = document.querySelectorAll('.person-item');
+      if (personCards.length === 0) {
+        alert('Přidejte prosím alespoň jednoho hosta.');
+        return false;
+      }
+
+      let adultsCount = 0;
+      let kidsCount = 0;
+      let celyDenList = [];
+      let obradList = [];
+      let omluveniList = [];
+      let dietSummaries = [];
+      let sleepNames = [];
+
+      let chybiJmeno = false;
+
+      personCards.forEach((card, idx) => {
+        const nameInput = card.querySelector('.person-name');
+        const name = nameInput ? nameInput.value.trim() : '';
+        if (!name) chybiJmeno = true;
+
+        const type = card.querySelector('.person-type').value;
+        const ucast = card.querySelector('.person-attendance').value;
+
+        if (ucast === 'ano_cely_den') {
+          celyDenList.push(name);
+          if (type === 'dospely') adultsCount++; else kidsCount++;
+        } else if (ucast === 'pouze_obrad') {
+          obradList.push(name);
+          if (type === 'dospely') adultsCount++; else kidsCount++;
+        } else {
+          omluveniList.push(name);
+        }
+
+        if (ucast !== 'ne') {
+          const wantsSleep = card.querySelector('.person-sleep').checked;
+          if (wantsSleep) sleepNames.push(name);
+
+          const checkedAllergies = Array.from(card.querySelectorAll('.person-allergy:checked')).map(cb => cb.value);
+          const customDiet = card.querySelector('.person-diet-custom').value.trim();
+          if (customDiet) checkedAllergies.push(customDiet);
+
+          if (checkedAllergies.length > 0) {
+            dietSummaries.push(`${name} (${checkedAllergies.join(', ')})`);
+          }
+        }
+      });
+
+      if (chybiJmeno) {
+        alert('Vyplňte prosím jména u všech přidaných hostů.');
+        return false;
+      }
+
+      let ucastTextArr = [];
+      if (celyDenList.length > 0) ucastTextArr.push(`Celý den: ${celyDenList.join(', ')}`);
+      if (obradList.length > 0) ucastTextArr.push(`Pouze obřad: ${obradList.join(', ')}`);
+      if (omluveniList.length > 0) ucastTextArr.push(`Neúčastní se: ${omluveniList.join(', ')}`);
+      const finalUcast = ucastTextArr.join(' | ') || 'Nikdo nepotvrdil';
+
+      const customMsg = document.getElementById('rsvp-custom-message').value.trim();
+      let accommodationText = '';
+      if (sleepNames.length > 0) {
+        accommodationText = `Ubytování: ANO pro ${sleepNames.length} os. (${sleepNames.join(', ')})`;
+      } else if (adultsCount + kidsCount > 0) {
+        accommodationText = 'Ubytování: NE';
+      }
+
+      const finalVzkaz = [accommodationText, customMsg].filter(Boolean).join(' | ') || '-';
+      const finalDiety = dietSummaries.length > 0 ? dietSummaries.join('; ') : ((adultsCount + kidsCount === 0) ? 'Omluveno' : 'Bez dietních omezení');
+
+      document.getElementById('hidden-jmeno').value = familyName;
+      document.getElementById('hidden-ucast').value = finalUcast;
+      document.getElementById('hidden-dospeli').value = adultsCount;
+      document.getElementById('hidden-deti').value = kidsCount;
+      document.getElementById('hidden-diety').value = finalDiety;
+      document.getElementById('hidden-vzkaz').value = finalVzkaz;
+
+      odesilaSe = true;
+      const btn = document.getElementById('rsvp-submit-btn');
+      btn.disabled = true;
+      btn.innerText = 'Odesílám potvrzení...';
+
+      return true;
+    }
+
+    function hotovoOdeslano() {
+      if (!odesilaSe) return;
+
+      odesilaSe = false;
+      const btn = document.getElementById('rsvp-submit-btn');
+      btn.disabled = false;
+      btn.innerText = 'Odeslat potvrzení za celou rodinu';
+
+      document.getElementById('rsvp-success').classList.remove('hidden');
+      document.getElementById('rsvp-form').reset();
+      
+      document.getElementById('persons-list').innerHTML = '';
+      personCount = 0;
+      pridatOsobu();
+
+      setTimeout(() => {
+        document.getElementById('rsvp-success').classList.add('hidden');
+      }, 7000);
+    }
+  </script>
+</body>
+</html>

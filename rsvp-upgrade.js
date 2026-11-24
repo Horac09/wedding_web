@@ -1,90 +1,652 @@
-/* Nacist AZ ZA puvodnim hlavnim skriptem, tesne pred </body>. */
 (() => {
   'use strict';
-  const form=document.getElementById('rsvp-form');
-  if(!form) return;
-  const btn=document.getElementById('rsvp-submit-btn');
-  const oldPrepare=window.predOdeslanim;
-  const originalLabel=btn.textContent.trim();
-  let busy=false, pending=null;
-  const randomHex=n=>Array.from(crypto.getRandomValues(new Uint8Array(n)),x=>x.toString(16).padStart(2,'0')).join('');
-  function field(id,label,type,max) {
-    const wrap=document.createElement('div');
-    const l=document.createElement('label'); l.htmlFor=id; l.textContent=label;
-    l.className='block text-xs font-medium mb-2';
-    const input=document.createElement('input'); input.id=id;input.type=type;input.maxLength=max;
-    input.className='w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-white';
-    wrap.append(l,input);return wrap;
-  }
-  document.getElementById('family-name').parentElement.after(field('rsvp-contact','E-mail nebo telefon (volitelné)','text',200));
-  const trap=field('rsvp-website','Toto pole nevyplňujte','text',200);
-  trap.hidden=true; trap.querySelector('input').tabIndex=-1;trap.querySelector('input').autocomplete='off';form.append(trap);
-  const hidden=document.createElement('input');hidden.type='hidden';hidden.name='payload';form.append(hidden);
-  const message=document.createElement('p');message.setAttribute('role','status');message.setAttribute('aria-live','polite');message.className='text-center text-sm pt-2';form.append(message);
-  const notice=document.createElement('p');notice.className='text-xs text-darkCharcoal/70';
-  notice.textContent='Údaje slouží k organizaci svatby. Uveďte jen potřebné informace o stravování, nikoli zdravotní diagnózy. Zájem o ubytování není potvrzením rezervace.';
-  btn.before(notice);
-  // Samotne nacteni iframe neni dukaz ulozeni.
-  window.hotovoOdeslano=()=>{};
-  function snapshot() {
-    return {family:document.getElementById('family-name').value.trim(),contact:document.getElementById('rsvp-contact').value.trim(),message:document.getElementById('rsvp-custom-message').value.trim(),website:document.getElementById('rsvp-website').value,guests:Array.from(form.querySelectorAll('.person-item'),card=>({name:card.querySelector('.person-name').value.trim(),type:card.querySelector('.person-type').value,attendance:card.querySelector('.person-attendance').value,sleep:card.querySelector('.person-sleep').checked,diets:Array.from(card.querySelectorAll('.person-allergy:checked'),x=>x.value),note:card.querySelector('.person-diet-custom').value.trim()}))};
-  }
-  function status(id) {
-    return new Promise((resolve,reject)=>{
-      const cb='weddingStatus_'+randomHex(8),s=document.createElement('script');
-      const clean=()=>{clearTimeout(timer);s.remove();delete window[cb];};
-      const timer=setTimeout(()=>{clean();reject(new Error('timeout'));},10000);
-      window[cb]=data=>{clean();resolve(data);};s.onerror=()=>{clean();reject(new Error('network'));};
-      const url=new URL(form.action);url.searchParams.set('id',id);url.searchParams.set('callback',cb);url.searchParams.set('_',Date.now());s.src=url.href;document.head.append(s);
-    });
-  }
-  async function confirm(id) {
-    const end=Date.now()+60000;
-    let ok=false;
-    try {
-      while(Date.now()<end) {
-        await new Promise(r=>setTimeout(r,3500));
-        try {const result=await status(id);if(result.id===id&&result.status==='success'){ok=true;break;}}catch(_){}
+
+  function initRsvp() {
+    const originalForm =
+      document.getElementById('rsvp-form');
+
+    if (!originalForm) {
+      console.error('RSVP: formulář nebyl nalezen.');
+      return;
+    }
+
+    const endpoint = originalForm.action;
+
+    if (!endpoint || !endpoint.endsWith('/exec')) {
+      console.error('RSVP: neplatná adresa action.');
+      return;
+    }
+
+    /*
+     * Odstranění starého iframe onload.
+     * Načtení iframe není potvrzení uložení.
+     */
+    document.querySelectorAll('iframe').forEach(frame => {
+      if (frame.name === originalForm.target) {
+        frame.removeAttribute('onload');
+        frame.onload = null;
       }
-      if(ok) {
-        message.textContent='Děkujeme! Vaše odpověď je uložená.';message.style.color='#3f5742';
-        form.reset();document.getElementById('persons-list').replaceChildren();window.pridatOsobu();pending=null;
-      } else {
-        message.textContent='Uložení se nepodařilo ověřit. Údaje zůstaly vyplněné. Bez jejich změny můžete odeslání bezpečně zopakovat. Pokud problém trvá, kontaktujte snoubence.';message.style.color='#9b332a';
+    });
+
+    /*
+     * Nový formulář bez původních inline handlerů
+     * a bez dříve připojených event listenerů.
+     */
+    const form = document.createElement('form');
+    form.id = 'rsvp-form';
+    form.className = originalForm.className;
+    form.action = endpoint;
+    form.method = 'post';
+    form.acceptCharset = 'UTF-8';
+    form.target = 'rsvp_transport_v2';
+
+    originalForm.replaceWith(form);
+
+    const oldSuccess =
+      document.getElementById('rsvp-success');
+
+    if (oldSuccess) {
+      oldSuccess.hidden = true;
+      oldSuccess.classList.add('hidden');
+    }
+
+    if (!document.getElementById('rsvp-v2-styles')) {
+      const style = document.createElement('style');
+      style.id = 'rsvp-v2-styles';
+
+      style.textContent = `
+        #rsvp-form .rsvp-field {
+          display: block;
+          margin-bottom: 16px;
+        }
+
+        #rsvp-form .rsvp-field > span {
+          display: block;
+          margin-bottom: 6px;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        #rsvp-form input:not([type="checkbox"]):not([type="hidden"]),
+        #rsvp-form select,
+        #rsvp-form textarea {
+          box-sizing: border-box;
+          width: 100%;
+          padding: 12px 14px;
+          border: 1px solid #d1d5db;
+          border-radius: 12px;
+          background: #fff;
+          color: #252525;
+          font: inherit;
+        }
+
+        #rsvp-form textarea {
+          min-height: 90px;
+          resize: vertical;
+        }
+
+        #rsvp-form fieldset {
+          min-width: 0;
+          margin: 0 0 18px;
+          padding: 18px;
+          border: 1px solid #d1d5db;
+          border-radius: 16px;
+        }
+
+        #rsvp-form legend {
+          padding: 0 6px;
+          font-weight: 600;
+        }
+
+        #rsvp-form .rsvp-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0 16px;
+        }
+
+        #rsvp-form .rsvp-check {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          margin: 10px 0;
+        }
+
+        #rsvp-form .rsvp-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin: 18px 0;
+        }
+
+        #rsvp-form button {
+          padding: 11px 18px;
+          border: 1px solid #777;
+          border-radius: 12px;
+          cursor: pointer;
+          font: inherit;
+        }
+
+        #rsvp-form .rsvp-primary {
+          background: #3f5742;
+          border-color: #3f5742;
+          color: white;
+        }
+
+        #rsvp-form button:disabled {
+          opacity: .6;
+          cursor: wait;
+        }
+
+        #rsvp-form :focus-visible {
+          outline: 3px solid #8b6f47;
+          outline-offset: 3px;
+        }
+
+        #rsvp-form .rsvp-small {
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        #rsvp-form [data-status] {
+          margin-top: 16px;
+          line-height: 1.6;
+        }
+
+        #rsvp-form [data-status]:focus {
+          outline-offset: 4px;
+        }
+
+        #rsvp-form [hidden] {
+          display: none !important;
+        }
+
+        @media (max-width: 600px) {
+          #rsvp-form .rsvp-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `;
+
+      document.head.appendChild(style);
+    }
+
+    /*
+     * innerHTML obsahuje pouze statickou šablonu.
+     * Hodnoty zadané hosty do HTML nevkládáme.
+     */
+    form.innerHTML = `
+      <div data-controls>
+        <label class="rsvp-field">
+          <span>Rodina nebo název skupiny *</span>
+          <input
+            data-family
+            type="text"
+            maxlength="150"
+            autocomplete="section-rsvp organization"
+            required
+          >
+        </label>
+
+        <label class="rsvp-field">
+          <span>E-mail nebo telefon, volitelné</span>
+          <input
+            data-contact
+            type="text"
+            maxlength="200"
+          >
+        </label>
+
+        <div data-guests></div>
+
+        <div class="rsvp-actions">
+          <button type="button" data-add>
+            Přidat hosta
+          </button>
+        </div>
+
+        <label class="rsvp-field">
+          <span>Vzkaz pro snoubence, volitelné</span>
+          <textarea
+            data-message
+            maxlength="2000"
+          ></textarea>
+        </label>
+
+        <div hidden>
+          <label>
+            Toto pole nevyplňujte
+            <input
+              data-website
+              type="text"
+              tabindex="-1"
+              autocomplete="off"
+            >
+          </label>
+        </div>
+
+        <p class="rsvp-small">
+          Údaje slouží k organizaci svatby.
+          Uveďte jen potřebné informace o stravování,
+          nikoli zdravotní diagnózy.
+          Zájem o ubytování není potvrzením rezervace.
+        </p>
+
+        <div class="rsvp-actions">
+          <button
+            type="submit"
+            class="rsvp-primary"
+            data-submit
+          >
+            Odeslat odpověď
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" name="payload">
+
+      <p
+        data-status
+        role="status"
+        aria-live="polite"
+        tabindex="-1"
+      ></p>
+    `;
+
+    const frame = document.createElement('iframe');
+    frame.name = 'rsvp_transport_v2';
+    frame.title = 'Technický rámec odeslání formuláře';
+    frame.hidden = true;
+    document.body.appendChild(frame);
+
+    const controls = form.querySelector('[data-controls]');
+    const guestList = form.querySelector('[data-guests]');
+    const addButton = form.querySelector('[data-add]');
+    const submitButton = form.querySelector('[data-submit]');
+    const statusBox = form.querySelector('[data-status]');
+    const payloadInput = form.querySelector('[name="payload"]');
+
+    let busy = false;
+    let pending = null;
+
+    function randomHex(bytes) {
+      return Array.from(
+        crypto.getRandomValues(new Uint8Array(bytes)),
+        value => value.toString(16).padStart(2, '0')
+      ).join('');
+    }
+
+    function setStatus(text, error = false) {
+      statusBox.textContent = text;
+      statusBox.style.color = error ? '#9b332a' : '#3f5742';
+    }
+
+    function renumberGuests() {
+      const cards = [...guestList.children];
+
+      cards.forEach((card, index) => {
+        card.querySelector('legend').textContent =
+          'Host ' + (index + 1);
+
+        card.querySelector('[data-remove]').disabled =
+          cards.length === 1;
+      });
+
+      addButton.disabled = cards.length >= 30;
+    }
+
+    function addGuest(focus = false) {
+      if (guestList.children.length >= 30) {
+        return;
       }
-    } finally {busy=false;form.inert=false;btn.disabled=false;btn.textContent=originalLabel;}
-  }
-  window.predOdeslanim=()=>{
-    if(busy) return false;
-    if(form.querySelectorAll('.person-item').length>30){message.textContent='Najednou lze odeslat nejvýše 30 hostů.';return false;}
-    if(!oldPrepare()) return false;
-    try {
-      const data=snapshot(),serialized=JSON.stringify(data);
-      if(!pending||pending.serialized!==serialized) pending={serialized,id:randomHex(32)};
-      hidden.value=JSON.stringify({...data,id:pending.id});
-      busy=true;message.textContent='Odesíláme a ověřujeme uložení…';message.style.color='';
-      document.getElementById('rsvp-success').classList.add('hidden');
-      // Nativni odeslani musi probehnout pred znepristupnenim formulare.
-      setTimeout(()=>{form.inert=true;confirm(pending.id);},0);
-      return true;
-    } catch(err) {busy=false;btn.disabled=false;btn.textContent=originalLabel;message.textContent='Odeslání se nepodařilo připravit. Zkuste aktuální prohlížeč.';return false;}
-  };
-  // Popisky puvodnich poli a oddeleni vegetarianske a veganske stravy.
-  let labelIndex=0;
-  function improveFields() {
-    form.querySelectorAll('label').forEach(label=>{
-      if(label.htmlFor||label.querySelector('input,select,textarea'))return;
-      const input=label.parentElement.querySelector('input:not([type=hidden]),select,textarea');
-      if(input){if(!input.id)input.id='rsvp-field-'+(++labelIndex);label.htmlFor=input.id;}
+
+      const card = document.createElement('fieldset');
+
+      card.innerHTML = `
+        <legend>Host</legend>
+
+        <label class="rsvp-field">
+          <span>Jméno a příjmení *</span>
+          <input
+            data-name
+            type="text"
+            maxlength="120"
+            required
+          >
+        </label>
+
+        <div class="rsvp-grid">
+          <label class="rsvp-field">
+            <span>Kategorie</span>
+            <select data-type>
+              <option value="dospely">Dospělý</option>
+              <option value="dite">Dítě</option>
+            </select>
+          </label>
+
+          <label class="rsvp-field">
+            <span>Účast</span>
+            <select data-attendance>
+              <option value="ano_cely_den">
+                Celý den včetně hostiny
+              </option>
+              <option value="pouze_obrad">
+                Pouze obřad
+              </option>
+              <option value="ne">
+                Nezúčastní se
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div data-attending>
+          <label class="rsvp-check">
+            <input data-sleep type="checkbox">
+            <span>Mám zájem o ubytování</span>
+          </label>
+
+          <p class="rsvp-small">Stravovací požadavky:</p>
+
+          <label class="rsvp-check">
+            <input
+              data-diet
+              type="checkbox"
+              value="Vegetarián"
+            >
+            <span>Vegetarián</span>
+          </label>
+
+          <label class="rsvp-check">
+            <input
+              data-diet
+              type="checkbox"
+              value="Vegan"
+            >
+            <span>Vegan</span>
+          </label>
+
+          <label class="rsvp-check">
+            <input
+              data-diet
+              type="checkbox"
+              value="Bezlepková"
+            >
+            <span>Bezlepková strava</span>
+          </label>
+
+          <label class="rsvp-check">
+            <input
+              data-diet
+              type="checkbox"
+              value="Bez laktózy"
+            >
+            <span>Bez laktózy</span>
+          </label>
+
+          <label class="rsvp-field">
+            <span>
+              Další požadavky na stravu, volitelné
+            </span>
+            <textarea
+              data-note
+              maxlength="500"
+            ></textarea>
+          </label>
+        </div>
+
+        <button type="button" data-remove>
+          Odebrat hosta
+        </button>
+      `;
+
+      const attendance =
+        card.querySelector('[data-attendance]');
+
+      attendance.addEventListener('change', () => {
+        card.querySelector('[data-attending]').hidden =
+          attendance.value === 'ne';
+      });
+
+      card.querySelector('[data-remove]')
+        .addEventListener('click', () => {
+          if (guestList.children.length > 1) {
+            card.remove();
+            renumberGuests();
+          }
+        });
+
+      guestList.appendChild(card);
+      renumberGuests();
+
+      if (focus) {
+        card.querySelector('[data-name]').focus();
+      }
+    }
+
+    function collectData() {
+      return {
+        family: form.querySelector('[data-family]')
+          .value.trim(),
+
+        contact: form.querySelector('[data-contact]')
+          .value.trim(),
+
+        message: form.querySelector('[data-message]')
+          .value.trim(),
+
+        website: form.querySelector('[data-website]')
+          .value,
+
+        guests: [...guestList.children].map(card => {
+          const attendance =
+            card.querySelector('[data-attendance]').value;
+
+          const absent = attendance === 'ne';
+
+          return {
+            name: card.querySelector('[data-name]')
+              .value.trim(),
+
+            type: card.querySelector('[data-type]').value,
+
+            attendance: attendance,
+
+            sleep: !absent &&
+              card.querySelector('[data-sleep]').checked,
+
+            diets: absent
+              ? []
+              : [...card.querySelectorAll('[data-diet]:checked')]
+                  .map(input => input.value),
+
+            note: absent
+              ? ''
+              : card.querySelector('[data-note]')
+                  .value.trim()
+          };
+        })
+      };
+    }
+
+    function requestStatus(id) {
+      return new Promise((resolve, reject) => {
+        const callback =
+          'weddingStatus_' + randomHex(8);
+
+        const script = document.createElement('script');
+        let timer;
+
+        function cleanup() {
+          clearTimeout(timer);
+          script.remove();
+          delete window[callback];
+        }
+
+        window[callback] = result => {
+          cleanup();
+          resolve(result);
+        };
+
+        script.onerror = () => {
+          cleanup();
+          reject(new Error('Odpověď serveru nelze načíst.'));
+        };
+
+        const url = new URL(endpoint);
+        url.searchParams.set('id', id);
+        url.searchParams.set('callback', callback);
+        url.searchParams.set('_', String(Date.now()));
+
+        script.src = url.href;
+
+        timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('Vypršel čas kontroly.'));
+        }, 8000);
+
+        document.head.appendChild(script);
+      });
+    }
+
+    async function waitForConfirmation(id) {
+      const deadline = Date.now() + 60000;
+
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        if (Date.now() >= deadline) {
+          break;
+        }
+
+        try {
+          const result = await requestStatus(id);
+
+          if (
+            result &&
+            result.id === id &&
+            result.status === 'success'
+          ) {
+            return true;
+          }
+        } catch (error) {
+          console.warn(
+            'RSVP: kontrola uložení zatím nebyla úspěšná.'
+          );
+        }
+      }
+
+      return false;
+    }
+
+    addButton.addEventListener('click', () => {
+      addGuest(true);
     });
-    form.querySelectorAll('.person-name').forEach(x=>x.maxLength=120);
-    form.querySelectorAll('.person-diet-custom').forEach(x=>x.maxLength=500);
-    form.querySelectorAll('input[value="Vegetarián/Vegan"]').forEach(x=>{
-      x.value='Vegetarián';const label=x.closest('label'),copy=label.cloneNode(true);
-      copy.querySelector('input').value='Vegan';copy.querySelector('input').checked=false;copy.querySelector('span').textContent='Vegan';label.after(copy);
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      if (busy || !form.reportValidity()) {
+        return;
+      }
+
+      try {
+        const data = collectData();
+
+        if (
+          !data.family ||
+          data.guests.some(guest => !guest.name)
+        ) {
+          setStatus(
+            'Vyplňte název rodiny a jména všech hostů.',
+            true
+          );
+          return;
+        }
+
+        const serialized = JSON.stringify(data);
+
+        /*
+         * Opakování stejného obsahu v této otevřené
+         * stránce použije stejné ID.
+         */
+        if (!pending || pending.serialized !== serialized) {
+          pending = {
+            serialized: serialized,
+            id: randomHex(32)
+          };
+        }
+
+        payloadInput.value = JSON.stringify({
+          ...data,
+          id: pending.id
+        });
+
+        busy = true;
+        submitButton.disabled = true;
+
+        setStatus('Odesíláme a ověřujeme uložení…');
+
+        /*
+         * Nativní POST do iframe.
+         * Nevoláme původní onsubmit ani staré funkce.
+         */
+        HTMLFormElement.prototype.submit.call(form);
+
+        controls.inert = true;
+
+        const confirmed =
+          await waitForConfirmation(pending.id);
+
+        if (confirmed) {
+          form.reset();
+          guestList.replaceChildren();
+          addGuest();
+
+          pending = null;
+          payloadInput.value = '';
+
+          setStatus(
+            'Děkujeme! Vaše odpověď je uložená.'
+          );
+        } else {
+          setStatus(
+            'Uložení se nepodařilo ověřit. ' +
+            'Údaje zůstaly vyplněné. ' +
+            'Bez jejich změny můžete odeslání zopakovat. ' +
+            'Pokud problém trvá, kontaktujte snoubence.',
+            true
+          );
+        }
+
+      } catch (error) {
+        console.error('RSVP:', error);
+
+        setStatus(
+          'Odeslání se nepodařilo dokončit. ' +
+          'Údaje zůstaly vyplněné.',
+          true
+        );
+
+      } finally {
+        busy = false;
+        controls.inert = false;
+        submitButton.disabled = false;
+        renumberGuests();
+      }
     });
+
+    addGuest();
+
+    console.info('RSVP-2: formulář je připraven.');
   }
-  document.getElementById('family-name').maxLength=150;
-  document.getElementById('rsvp-custom-message').maxLength=2000;
-  improveFields();new MutationObserver(improveFields).observe(document.getElementById('persons-list'),{childList:true});
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      initRsvp,
+      { once: true }
+    );
+  } else {
+    initRsvp();
+  }
 })();
